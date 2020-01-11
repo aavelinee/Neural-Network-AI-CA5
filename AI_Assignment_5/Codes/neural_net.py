@@ -7,6 +7,7 @@ import math
 import random
 import functools
 import numpy as np
+import matplotlib.pyplot as plt
 from utility import alphabetize, abs_mean
 
 class ValuedElement(object):
@@ -61,7 +62,6 @@ class Input(ValuedElement,DifferentiableElement):
         returns: number (float or int)
         """
         return self.get_value()
-        # raise NotImplementedError("Implement me!")
 
     def dOutdX(self, elem):
         """
@@ -73,7 +73,6 @@ class Input(ValuedElement,DifferentiableElement):
         returns: number (float or int)
         """
         return 0
-        # raise NotImplementedError("Implement me!")
 
 class Weight(ValuedElement):
     """
@@ -177,9 +176,16 @@ class Neuron(DifferentiableElement):
 
         returns: number (float or int)
         """
-        for i in range len(self.my_inputs):
+        return (1.0 / (1.0 + math.exp(-self.sigma())) )
             
-        raise NotImplementedError("Implement me!")
+    
+    def sigma(self):
+        sgma = 0.0
+        inputs = self.get_inputs()
+        weights = self.get_weights()
+        for i in range(len(inputs)):
+            sgma += inputs[i].output() * weights[i].get_value()
+        return sgma
 
     def dOutdX(self, elem):
         # Implement compute_doutdx instead!!
@@ -199,7 +205,20 @@ class Neuron(DifferentiableElement):
 
         returns: number (float/int)
         """
-        raise NotImplementedError("Implement me!")
+        out = (1 - self.output()) * self.output()
+        
+        if self.has_weight(elem):
+            index = self.my_weights.index(elem)
+            xi = self.get_inputs()[index].output()
+            result = out * xi
+        else:
+            result = 0
+            for i in range(len(self.get_weights())):
+                if self.isa_descendant_weight_of(elem, self.my_weights[i]):
+                    xi = self.get_inputs()[i].dOutdX(elem)
+                    result += self.my_weights[i].get_value() * xi
+            result *= out
+        return result
 
     def get_weights(self):
         return self.my_weights
@@ -234,7 +253,7 @@ class PerformanceElem(DifferentiableElement):
         
         returns: number (float/int)
         """
-        raise NotImplementedError("Implement me!")
+        return -(0.5 * (self.my_desired_val - self.my_input.output()) ** 2)
 
     def dOutdX(self, elem):
         """
@@ -245,7 +264,7 @@ class PerformanceElem(DifferentiableElement):
 
         returns: number (int/float)
         """
-        raise NotImplementedError("Implement me!")
+        return ( (self.my_desired_val - self.my_input.output()) * self.my_input.dOutdX(elem) )
 
     def set_desired(self,new_desired):
         self.my_desired_val = new_desired
@@ -283,6 +302,37 @@ class Network(object):
     def clear_cache(self):
         for n in self.neurons:
             n.clear_cache()
+    
+    def finite_difference(self):
+        eps = 10 ** (-8)
+        for neuron in self.neurons:
+            neuron.clear_cache()
+            out1 = neuron.output()
+            for weight in neuron.get_weights():
+                old_weight = weight.get_value()
+                weight.set_value(weight.get_value() + eps)
+                neuron.clear_cache()
+                out2 = neuron.output()
+                weight.set_value(old_weight)
+                finite_diff = (out2 - out1) / eps
+                neuron.clear_cache()
+                deriv = neuron.dOutdX(weight)
+                if (deriv - finite_diff) > (10 ** -5):
+                    print('error!') 
+    def plot_decision_boundary(self, network, xmin, xmax, ymin, ymax, step = 0.04):
+        xaxis = np.arange(xmin, xmax, step)
+        yaxis = np.arange(ymin, ymax, step)
+        for x in xaxis:
+            for y in yaxis:
+                network.clear_cache()
+                network.inputs[0].set_value(x)
+                network.inputs[1].set_value(y)
+                result = network.output.output()
+                if result < 0.5:
+                    plt.scatter(x, y, c='green')
+                else:
+                    plt.scatter(x, y, c='brown')
+        plt.show()
 
 def seed_random():
     """Seed the random number generator so that random
@@ -294,11 +344,11 @@ def random_weight():
     """Generate a deterministic random weight"""
     # We found that random.randrange(-1,2) to work well emperically 
     # even though it produces randomly 3 integer values -1, 0, and 1.
-    return random.randrange(-1, 2)
+    # return random.randrange(-1, 2)
 
     # Uncomment the following if you want to try a uniform distribuiton 
     # of random numbers compare and see what the difference is.
-    # return random.uniform(-1, 1)
+    return random.uniform(-1, 1)
 
     # When training larger networks, initialization with small, random
     # values centered around 0 is also common, like the line below:
@@ -355,7 +405,31 @@ def make_neural_net_two_layer():
     See 'make_neural_net_basic' for required naming convention for inputs,
     weights, and neurons.
     """
-    raise NotImplementedError("Implement me!")
+    seed_random()
+    i0 = Input('i0', -1.0) # this input is immutable
+    i1 = Input('i1', 0.0)
+    i2 = Input('i2', 0.0)
+
+    w1A = Weight('w1A', random_weight())
+    w2A = Weight('w2A', random_weight())
+    wA = Weight('wA', random_weight())
+
+    w1B  = Weight('w1B', random_weight())
+    w2B = Weight('w2B', random_weight())
+    wB = Weight('wB', random_weight())
+
+    wAC = Weight('wAC', random_weight())
+    wBC = Weight('wBC', random_weight())
+    wC = Weight('wC', random_weight())
+    
+    A = Neuron('A', [i1,i2,i0], [w1A,w2A,wA])
+    B = Neuron('B', [i1,i2,i0], [w1B,w2B,wB])
+    C = Neuron('C', [A,B,i0], [wAC,wBC,wC])
+
+    P = PerformanceElem(C, 0.0)
+
+    net = Network(P,[A,B,C])
+    return net
 
 
 def make_neural_net_challenging():
@@ -380,14 +454,51 @@ def make_neural_net_two_moons():
     See 'make_neural_net_basic' for required naming convention for inputs,
     weights, and neurons.
     """
-    raise NotImplementedError("Implement me!")
+    seed_random()
+    i0 = Input('i0', -1.0) # this input is immutable
+    i1 = Input('i1', 0.0)
+    i2 = Input('i2', 0.0)
+
+    neurons = []
+    weights = []
+    wInOut = []
+    for n in range(40):
+
+        w1 = Weight('w1' + chr(65+n), random_weight())
+        w2 = Weight('w2' + chr(65+n), random_weight())
+        w = Weight('w' + chr(65+n), random_weight())
+
+        weights.append(w1)
+        weights.append(w2)
+        weights.append(w)
+
+        neurons.append(Neuron(chr(65+n), [i1,i2,i0], [w1,w2,w]))
+    
+        wInOut.append(Weight('w' + chr(65+n) + chr(65 + 40), random_weight()))
+    
+    nOutNeurons = neurons.copy()
+    nOutNeurons.append(i0)
+
+
+    wOut = Weight('w'+chr(65+40), random_weight())
+    wInOut.append(wOut)
+    nOut = Neuron(chr(65+40), nOutNeurons, wInOut)
+
+    neurons.append(nOut)
+    
+    P = PerformanceElem(nOut, 0.0)
+    net = Network(P, neurons)
+    return net
+
+    
+    # raise NotImplementedError("Implement me!")
 
 
 def train(network,
           data,      # training data
           rate=1.0,  # learning rate
           target_abs_mean_performance=0.0001,
-          max_iterations=10000,
+          max_iterations=50000,
           verbose=False):
     """Run back-propagation training algorithm on a given network.
     with training [data].   The training runs for [max_iterations]
@@ -438,13 +549,13 @@ def train(network,
 
         iteration += 1
 
-        if iteration % 10 == 0 and verbose:
-            print("iter %d: mean-abs-performance = %1.6f"\
-                  %(iteration,
-                    abs_mean_performance))
+        # if iteration % 10 == 0 and verbose:
+        #     print("iter %d: mean-abs-performance = %1.6f"\
+        #           %(iteration,
+        #             abs_mean_performance))
 
     print('weights:', network.weights)
-    plot_decision_boundary(network, data)
+    # plot_decision_boundary(network, data)
 
 
 def test(network, data, verbose=False):
@@ -478,7 +589,4 @@ def test(network, data, verbose=False):
                                                            "wrong"))
 
     return float(correct)/len(data)
-
-
-
-
+    

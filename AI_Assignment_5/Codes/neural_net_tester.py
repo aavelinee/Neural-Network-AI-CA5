@@ -1,12 +1,15 @@
 # Unit tester for neural_net.py
 #
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 from neural_net import train, test,\
      make_neural_net_basic,\
      make_neural_net_two_layer,\
      make_neural_net_challenging,\
-     make_neural_net_large
+     make_neural_net_two_moons
 
 from neural_net_data import simple_data_sets,\
      harder_data_sets,\
@@ -28,6 +31,9 @@ def main(neural_net_func, data_sets, rate=1.0, max_iterations=10000):
         print("Testing on %s test-data" %(name))
         result = test(nn, test_data, verbose=verbose)
         print("Accuracy: %f"%(result))
+        nn.finite_difference()
+        nn.plot_decision_boundary(nn, 0, 2, 0, 2)
+        
 
 if __name__=="__main__":
     test_names = ["simple"]
@@ -51,7 +57,7 @@ if __name__=="__main__":
 
         elif test_name == "two_moons":
             # this dataset illustrates the overfitting problem
-            main(make_neural_net_large, two_moons_data_set, max_iterations=1000)
+            main(make_neural_net_two_moons, two_moons_data_set, max_iterations=100)
 
         else:
             print("unrecognized test name %s" %(test_name))
