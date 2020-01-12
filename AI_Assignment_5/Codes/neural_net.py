@@ -220,6 +220,15 @@ class Neuron(DifferentiableElement):
             result *= out
         return result
 
+    def get_squared(self):
+        sumOfSquared = 0.0
+        for w in self.my_weights:
+            sumOfSquared += (w.get_value()**2)
+        for i in self.my_inputs:
+            if not isinstance (i, Input):
+                sumOfSquared += i.get_squared()
+        return sumOfSquared
+
     def get_weights(self):
         return self.my_weights
 
@@ -272,6 +281,17 @@ class PerformanceElem(DifferentiableElement):
     def get_input(self):
         return self.my_input
 
+class RegularizedPerformanceElem(PerformanceElem):
+    def __init__(self, input, desired_value):
+        PerformanceElem.__init__(self,input,desired_value)
+
+    def output(self):
+        l = 0.0005
+        return (PerformanceElem.output(self) - l * math.sqrt(self.my_input.get_squared()))
+    
+    def dOutdX(self, elem):
+        l = 0.0005
+        return PerformanceElem.dOutdX(self, elem) - l * elem.get_value() * (self.my_input.get_squared() ** (-0.5))
 
 class Network(object):
     def __init__(self,performance_node,neurons):
@@ -486,14 +506,12 @@ def make_neural_net_two_moons():
 
     neurons.append(nOut)
     
-    P = PerformanceElem(nOut, 0.0)
+    # P = PerformanceElem(nOut, 0.0)
+    P = RegularizedPerformanceElem(nOut, 0.0)
     net = Network(P, neurons)
     return net
 
     
-    # raise NotImplementedError("Implement me!")
-
-
 def train(network,
           data,      # training data
           rate=1.0,  # learning rate

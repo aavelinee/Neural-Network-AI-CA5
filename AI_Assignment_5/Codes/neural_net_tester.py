@@ -57,7 +57,7 @@ if __name__=="__main__":
 
         elif test_name == "two_moons":
             # this dataset illustrates the overfitting problem
-            main(make_neural_net_two_moons, two_moons_data_set, max_iterations=100)
+            main(make_neural_net_two_moons, two_moons_data_set, max_iterations=500)
 
         else:
             print("unrecognized test name %s" %(test_name))
